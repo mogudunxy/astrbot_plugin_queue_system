@@ -1,0 +1,37 @@
+{
+  "call_permission_users": {
+    "description": "可以使用'下一位'指令的用户ID列表",
+    "type": "list",
+    "hint": "填写可以使用叫号功能的用户QQ号，留空则所有人都可以使用"
+  },
+  "enable_call_permission": {
+    "description": "是否启用叫号权限控制",
+    "type": "bool",
+    "hint": "开启后只有指定用户才能使用'下一位'指令",
+    "default": false
+  },
+  "max_queue_size": {
+    "description": "队列最大人数",
+    "type": "int",
+    "hint": "单个群聊最大排队人数",
+    "default": 50
+  },
+  "queue_name": {
+    "description": "队列名称",
+    "type": "string",
+    "hint": "自定义队列显示名称",
+    "default": "排队"
+  },
+  "enable_auto_clear": {
+    "description": "是否启用定时清除队列",
+    "type": "bool",
+    "hint": "开启后会在指定时间自动清空所有队列",
+    "default": false
+  },
+  "clear_time": {
+    "description": "定时清除时间",
+    "type": "string",
+    "hint": "格式：HH:MM，例如：23:59 表示每天23点59分清空队列",
+    "default": "23:59"
+  }
+}
