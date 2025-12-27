@@ -185,12 +185,19 @@ class QueuePlugin(Star):
         user_id = event.get_sender_id()
         user_name = event.get_sender_name()
         queue, group_id = self.get_queue(event)
+        group_name = f"群聊{group_id}" if group_id != "private" else "私聊"
         
         # 检查是否已经在队列中
         for person in queue:
             if person["user_id"] == user_id:
                 yield event.plain_result(f"❌ 你已经在队列中了，位置：第{person['position']}位")
                 return
+        
+        # 检查是否已经完成过排队
+        completed_users_list = self.completed_users.get(group_id, [])
+        if user_name in completed_users_list:
+            yield event.plain_result(f"❌ 你今天已经排过队并完成了，不能再次排队！")
+            return
         
         # 检查队列是否已满
         if len(queue) >= self.max_queue_size:
@@ -208,8 +215,6 @@ class QueuePlugin(Star):
         
         # 保存数据到持久化存储
         await self.save_queues_to_storage()
-        
-        group_name = f"群聊{group_id}" if group_id != "private" else "私聊"
         
         # 发送排队成功消息
         yield event.plain_result(f"✅ 排队成功！\n📍 你的位置：第{position}位\n👥 当前{group_name}队列人数：{len(queue)}")
