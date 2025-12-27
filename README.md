@@ -114,7 +114,7 @@ astrbot_plugin_queue_system/
 ## 版本信息
 
 - **版本**：1.0.0
-- **作者**：YourName
+- **作者**：mogudunxy
 - **框架**：AstrBot v3.4+
 - **Python要求**：3.7+
 
