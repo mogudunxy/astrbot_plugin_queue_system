@@ -443,6 +443,43 @@ class QueuePlugin(Star):
         
         yield event.plain_result(f"⏭️ 已跳过 {skipped_person['user_name']}\n👥 剩余{len(queue)}人等待")
 
+    @filter.command("排队帮助", alias={'help', '帮助'})
+    async def queue_help(self, event: AstrMessageEvent):
+        """显示排队系统帮助信息"""
+        help_text = f"📋 {self.queue_name}系统使用帮助\n\n"
+        help_text += "👤 用户指令：\n"
+        help_text += "• /排队 - 加入排队队列\n"
+        help_text += "• /退出排队 - 退出当前排队\n"
+        help_text += "• /查看队列 - 查看当前队列状态\n"
+        help_text += "• /我的位置 - 查看自己在队列中的位置\n"
+        help_text += "• /当前叫号 - 查看即将被叫的用户\n"
+        help_text += "• /排队帮助 - 显示此帮助信息\n\n"
+        help_text += "🔧 管理员指令：\n"
+        help_text += "• /下一位 - 呼叫队列中的下一位用户"
+        if self.enable_call_permission:
+            help_text += " (需要权限)"
+        help_text += "\n"
+        help_text += "• /跳过 - 跳过队列中的第一位用户\n"
+        help_text += "• /清空队列 - 清空当前群聊的队列和已完成记录\n"
+        help_text += "• /清空所有队列 - 清空所有群聊的队列和已完成记录\n\n"
+        help_text += f"⚙️ 当前配置：\n"
+        help_text += f"• 队列名称：{self.queue_name}\n"
+        help_text += f"• 最大队列人数：{self.max_queue_size}\n"
+        help_text += f"• 重复排队：{'允许' if self.allow_requeue else '不允许'}\n"
+        help_text += f"• 自动清空：{'启用' if self.enable_auto_clear else '未启用'}"
+        if self.enable_auto_clear:
+            help_text += f" (每天 {self.clear_time})"
+        help_text += "\n"
+        if self.enable_call_permission:
+            help_text += f"• 叫号权限：已启用\n"
+        help_text += f"\n💡 提示：\n"
+        help_text += "• 每人每天只能排队一次（除非配置允许重复排队）\n"
+        help_text += "• 被叫号后会自动加入已完成列表\n"
+        help_text += "• 每天定时清空队列和已完成记录\n"
+        help_text += "• 退出排队后可以重新排队"
+        
+        yield event.plain_result(help_text)
+
     async def terminate(self):
         """插件销毁方法"""
         logger.info("排队系统插件已停止")
