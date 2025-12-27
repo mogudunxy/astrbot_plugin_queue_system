@@ -33,5 +33,29 @@
     "type": "string",
     "hint": "格式：HH:MM，例如：23:59 表示每天23点59分清空队列",
     "default": "23:59"
+  },
+  "call_message": {
+    "description": "叫号通知消息",
+    "type": "string",
+    "hint": "叫号时的通知消息，{user_name}会被替换为用户名",
+    "default": "到你了，请前往直播间扫码上号"
+  },
+  "queue_status_title": {
+    "description": "队列状态标题",
+    "type": "string",
+    "hint": "显示队列状态时的标题文字",
+    "default": "队列状态"
+  },
+  "completed_label": {
+    "description": "已完成标签",
+    "type": "string",
+    "hint": "已完成用户的标签文字",
+    "default": "已完成"
+  },
+  "waiting_label": {
+    "description": "等待中标签",
+    "type": "string",
+    "hint": "等待中用户的标签文字",
+    "default": "等待中"
   }
 }

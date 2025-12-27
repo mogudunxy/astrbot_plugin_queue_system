@@ -25,6 +25,12 @@ class QueuePlugin(Star):
         self.enable_auto_clear = self.config.get("enable_auto_clear", False)
         self.clear_time = self.config.get("clear_time", "23:59")
         
+        # 通知消息配置
+        self.call_message = self.config.get("call_message", "到你了，请前往直播间扫码上号")
+        self.queue_status_title = self.config.get("queue_status_title", "队列状态")
+        self.completed_label = self.config.get("completed_label", "已完成")
+        self.waiting_label = self.config.get("waiting_label", "等待中")
+        
         # 启动定时清除任务
         self.clear_task = None
         if self.enable_auto_clear:
@@ -347,35 +353,38 @@ class QueuePlugin(Star):
             person["position"] = i + 1
         
         # 发送叫号消息，包含@功能
+        # 使用配置的叫号消息，替换用户名占位符
+        formatted_message = self.call_message.format(user_name=next_person['user_name'])
+        
         call_chain = [
             Comp.At(qq=next_person['user_id']),  # @被叫用户
-            Comp.Plain(" 到你了，请前往直播间扫码上号")
+            Comp.Plain(f" {formatted_message}")
         ]
         
         try:
             yield event.chain_result(call_chain)
         except:
             # 如果不支持@功能，发送简化版本
-            call_message = f"{next_person['user_name']} 到你了，请前往直播间扫码上号"
+            call_message = f"{next_person['user_name']} {formatted_message}"
             yield event.plain_result(call_message)
         
         # 显示完整队列状态
-        queue_info = f"\n📋 队列状态：\n\n"
+        queue_info = f"\n📋 {self.queue_status_title}：\n\n"
         
         # 显示已完成的用户
         if self.completed_users[group_id]:
-            queue_info += "✅ 已完成：\n"
+            queue_info += f"✅ {self.completed_label}：\n"
             for completed_user in self.completed_users[group_id]:
-                queue_info += f"• {completed_user} (已完成)\n"
+                queue_info += f"• {completed_user} ({self.completed_label})\n"
             queue_info += "\n"
         
         # 显示等待中的用户
         if queue:
-            queue_info += "⏳ 等待中：\n"
+            queue_info += f"⏳ {self.waiting_label}：\n"
             for i, person in enumerate(queue, 1):
                 queue_info += f"{i}. {person['user_name']}\n"
         else:
-            queue_info += "⏳ 等待中：\n暂无排队人员"
+            queue_info += f"⏳ {self.waiting_label}：\n暂无排队人员"
         
         yield event.plain_result(queue_info)
 
