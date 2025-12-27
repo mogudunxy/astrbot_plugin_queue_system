@@ -304,9 +304,15 @@ class QueuePlugin(Star):
     @filter.command("清空队列")
     async def clear_queue(self, event: AstrMessageEvent):
         """清空当前群聊队列（管理员功能）"""
-        # 这里可以添加管理员权限检查
         queue, group_id = self.get_queue(event)
         group_name = f"群聊{group_id}" if group_id != "private" else "私聊"
+        
+        # 权限检查
+        if self.enable_call_permission:
+            user_id = event.get_sender_id()
+            if str(user_id) not in self.call_permission_users:
+                yield event.plain_result("❌ 你没有使用'清空队列'指令的权限")
+                return
         
         queue.clear()
         self.completed_users[group_id] = []
@@ -319,7 +325,13 @@ class QueuePlugin(Star):
     @filter.command("清空所有队列")
     async def clear_all_queues(self, event: AstrMessageEvent):
         """清空所有群聊队列（管理员功能）"""
-        # 这里可以添加管理员权限检查
+        # 权限检查
+        if self.enable_call_permission:
+            user_id = event.get_sender_id()
+            if str(user_id) not in self.call_permission_users:
+                yield event.plain_result("❌ 你没有使用'清空所有队列'指令的权限")
+                return
+        
         total_cleared = len(self.queues)
         self.queues.clear()
         self.completed_users.clear()
@@ -434,12 +446,22 @@ class QueuePlugin(Star):
             yield event.plain_result(f"📋 {group_name}队列为空，无法跳过")
             return
         
+        # 权限检查
+        if self.enable_call_permission:
+            user_id = event.get_sender_id()
+            if str(user_id) not in self.call_permission_users:
+                yield event.plain_result("❌ 你没有使用'跳过'指令的权限")
+                return
+        
         # 跳过第一位
         skipped_person = queue.pop(0)
         
         # 重新排序
         for i, person in enumerate(queue):
             person["position"] = i + 1
+        
+        # 保存数据到持久化存储
+        await self.save_queues_to_storage()
         
         yield event.plain_result(f"⏭️ 已跳过 {skipped_person['user_name']}\n👥 剩余{len(queue)}人等待")
 
@@ -459,9 +481,18 @@ class QueuePlugin(Star):
         if self.enable_call_permission:
             help_text += " (需要权限)"
         help_text += "\n"
-        help_text += "• /跳过 - 跳过队列中的第一位用户\n"
-        help_text += "• /清空队列 - 清空当前群聊的队列和已完成记录\n"
-        help_text += "• /清空所有队列 - 清空所有群聊的队列和已完成记录\n\n"
+        help_text += "• /跳过 - 跳过队列中的第一位用户"
+        if self.enable_call_permission:
+            help_text += " (需要权限)"
+        help_text += "\n"
+        help_text += "• /清空队列 - 清空当前群聊的队列和已完成记录"
+        if self.enable_call_permission:
+            help_text += " (需要权限)"
+        help_text += "\n"
+        help_text += "• /清空所有队列 - 清空所有群聊的队列和已完成记录"
+        if self.enable_call_permission:
+            help_text += " (需要权限)"
+        help_text += "\n\n"
         help_text += f"⚙️ 当前配置：\n"
         help_text += f"• 队列名称：{self.queue_name}\n"
         help_text += f"• 最大队列人数：{self.max_queue_size}\n"
