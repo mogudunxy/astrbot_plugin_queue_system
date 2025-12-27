@@ -1,61 +1,57 @@
 {
-  "call_permission_users": {
-    "description": "可以使用'下一位'指令的用户ID列表",
-    "type": "list",
-    "hint": "填写可以使用叫号功能的用户QQ号，留空则所有人都可以使用"
-  },
   "enable_call_permission": {
     "description": "是否启用叫号权限控制",
     "type": "bool",
-    "hint": "开启后只有指定用户才能使用'下一位'指令",
     "default": false
+  },
+  "call_permission_users": {
+    "description": "有叫号权限的用户ID列表",
+    "type": "list",
+    "default": []
   },
   "max_queue_size": {
     "description": "队列最大人数",
     "type": "int",
-    "hint": "单个群聊最大排队人数",
     "default": 50
   },
   "queue_name": {
-    "description": "队列名称",
+    "description": "排队系统名称",
     "type": "string",
-    "hint": "自定义队列显示名称",
     "default": "排队"
   },
   "enable_auto_clear": {
-    "description": "是否启用定时清除队列",
+    "description": "是否启用定时清空队列",
     "type": "bool",
-    "hint": "开启后会在指定时间自动清空所有队列",
     "default": false
   },
   "clear_time": {
-    "description": "定时清除时间",
+    "description": "清空队列时间（格式：HH:MM）",
     "type": "string",
-    "hint": "格式：HH:MM，例如：23:59 表示每天23点59分清空队列",
     "default": "23:59"
   },
   "call_message": {
-    "description": "叫号通知消息",
+    "description": "叫号通知消息，可用占位符 {user_name}",
     "type": "string",
-    "hint": "叫号时的通知消息，{user_name}会被替换为用户名",
     "default": "到你了，请前往直播间扫码上号"
   },
   "queue_status_title": {
     "description": "队列状态标题",
     "type": "string",
-    "hint": "显示队列状态时的标题文字",
     "default": "队列状态"
   },
   "completed_label": {
     "description": "已完成标签",
     "type": "string",
-    "hint": "已完成用户的标签文字",
     "default": "已完成"
   },
   "waiting_label": {
     "description": "等待中标签",
     "type": "string",
-    "hint": "等待中用户的标签文字",
     "default": "等待中"
+  },
+  "allow_requeue": {
+    "description": "是否允许已完成排队的用户再次排队",
+    "type": "bool",
+    "default": false
   }
 }

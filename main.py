@@ -31,6 +31,9 @@ class QueuePlugin(Star):
         self.completed_label = self.config.get("completed_label", "已完成")
         self.waiting_label = self.config.get("waiting_label", "等待中")
         
+        # 重复排队配置
+        self.allow_requeue = self.config.get("allow_requeue", False)
+        
         # 启动定时清除任务
         self.clear_task = None
         if self.enable_auto_clear:
@@ -193,11 +196,12 @@ class QueuePlugin(Star):
                 yield event.plain_result(f"❌ 你已经在队列中了，位置：第{person['position']}位")
                 return
         
-        # 检查是否已经完成过排队
-        completed_users_list = self.completed_users.get(group_id, [])
-        if user_name in completed_users_list:
-            yield event.plain_result(f"❌ 你今天已经排过队并完成了，不能再次排队！")
-            return
+        # 检查是否已经完成过排队（如果配置不允许重复排队）
+        if not self.allow_requeue:
+            completed_users_list = self.completed_users.get(group_id, [])
+            if user_name in completed_users_list:
+                yield event.plain_result(f"❌ 你今天已经排过队并完成了，不能再次排队！")
+                return
         
         # 检查队列是否已满
         if len(queue) >= self.max_queue_size:
