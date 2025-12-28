@@ -7,7 +7,292 @@ import asyncio
 from datetime import datetime, time as dt_time
 import astrbot.api.message_components as Comp
 
-@register("queue_system", "YourName", "排队系统插件", "1.0.0")
+# 暖色调的自定义HTML模板
+BEAUTIFUL_QUEUE_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>排队系统状态</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            padding: 40px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            border: 3px solid #ff9a62;
+        }
+        h1 {
+            color: #d63031;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 36px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .subtitle {
+            color: #fd79a8;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 18px;
+        }
+        .info-section {
+            background: linear-gradient(135deg, #ffd89b 0%, #19547b 0%, #ff9a62 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .info-section h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .info-section p {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+        .queue-list {
+            margin: 20px 0;
+        }
+        .queue-item {
+            background: linear-gradient(135deg, #fff5e6 0%, #ffe8d6 100%);
+            border: 2px solid #ffb380;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        .queue-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(255, 154, 98, 0.3);
+        }
+        .queue-number {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        .queue-name {
+            font-size: 18px;
+            color: #2d3436;
+            flex: 1;
+        }
+        .completed-section {
+            background: linear-gradient(135deg, #ffd93d 0%, #ffb347 100%);
+            color: #2d3436;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 25px;
+        }
+        .completed-section h3 {
+            color: #d63031;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        .completed-item {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        .more-info {
+            text-align: center;
+            color: #636e72;
+            font-style: italic;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 {{ queue_name }}</h1>
+        <div class="subtitle">{{ group_name }}</div>
+        <div class="info-section">
+            <h2>👥 队列状态</h2>
+            <p>当前人数：{{ current_size }} / {{ max_size }}</p>
+        </div>
+        {% if queue_items %}
+            <div class="queue-list">
+                {% for item in queue_items %}
+                    <div class="queue-item">
+                        <div class="queue-number">{{ loop.index }}</div>
+                        <div class="queue-name">{{ item.user_name }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+            {% if has_more %}
+                <div class="more-info">... 还有 {{ more_count }} 人等待</div>
+            {% endif %}
+        {% else %}
+            <div class="more-info">暂无排队人员</div>
+        {% endif %}
+        {% if completed_users %}
+            <div class="completed-section">
+                <h3>✅ 已完成</h3>
+                {% for user in completed_users %}
+                    <div class="completed-item">{{ user }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+'''
+
+# 暖色调帮助信息模板
+HELP_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>排队系统帮助</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            padding: 40px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 700px;
+            width: 100%;
+            border: 3px solid #ff9a62;
+        }
+        h1 {
+            color: #d63031;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 36px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .subtitle {
+            color: #fd79a8;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 18px;
+        }
+        .section {
+            background: linear-gradient(135deg, #fff5e6 0%, #ffe8d6 100%);
+            border: 2px solid #ffb380;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+        .section h2 {
+            color: #d63031;
+            margin-bottom: 15px;
+            font-size: 24px;
+            border-bottom: 3px solid #ff9a62;
+            padding-bottom: 10px;
+        }
+        .section p {
+            color: #2d3436;
+            line-height: 1.8;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .command-item {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 12px 15px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 4px solid #ff6b6b;
+        }
+        .command-item strong {
+            color: #d63031;
+            font-weight: bold;
+        }
+        .config-section {
+            background: linear-gradient(135deg, #ffd89b 0%, #ff9a62 100%);
+            color: #2d3436;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 25px;
+        }
+        .config-section h3 {
+            color: #d63031;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 {{ queue_name }}系统</h1>
+        <div class="subtitle">使用帮助指南</div>
+        
+        <div class="section">
+            <h2>👤 用户指令</h2>
+            <div class="command-item"><strong>• /排队</strong> - 加入排队队列</div>
+            <div class="command-item"><strong>• /退出排队</strong> - 退出当前排队</div>
+            <div class="command-item"><strong>• /查看队列</strong> - 查看当前队列状态</div>
+            <div class="command-item"><strong>• /我的位置</strong> - 查看自己在队列中的位置</div>
+            <div class="command-item"><strong>• /当前叫号</strong> - 查看即将被叫的用户</div>
+            <div class="command-item"><strong>• /排队帮助</strong> - 显示此帮助信息</div>
+        </div>
+        
+        <div class="section">
+            <h2>🔧 管理员指令</h2>
+            <div class="command-item"><strong>• /下一位</strong> - 呼叫队列中的下一位用户{{ permission_text }}</div>
+            <div class="command-item"><strong>• /跳过</strong> - 跳过队列中的第一位用户{{ permission_text }}</div>
+            <div class="command-item"><strong>• /清空队列</strong> - 清空当前群聊的队列和已完成记录{{ permission_text }}</div>
+            <div class="command-item"><strong>• /清空所有队列</strong> - 清空所有群聊的队列和已完成记录 (需要高级管理员权限)</div>
+        </div>
+        
+        <div class="config-section">
+            <h3>⚙️ 当前配置</h3>
+            {% for config in config_items %}
+                <p><strong>{{ config.key }}:</strong> {{ config.value }}</p>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>
+'''
+
+@register("queue_system", "YourName", "排队系统插件", "1.1.0")
 class QueuePlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig = None):
         super().__init__(context)
@@ -90,6 +375,8 @@ class QueuePlugin(Star):
         except Exception as e:
             logger.error(f"清除存储数据时出错：{e}")
     
+
+
     def __del__(self):
         """插件销毁时停止定时任务"""
         if hasattr(self, 'clear_task') and self.clear_task:
@@ -229,16 +516,30 @@ class QueuePlugin(Star):
         
         # 发送当前队列状态
         if queue:
-            queue_info = f"📋 {group_name}{self.queue_name}状态\n"
-            queue_info += f"👥 队列人数：{len(queue)}/{self.max_queue_size}\n\n"
-            
-            for i, person in enumerate(queue[:10], 1):  # 只显示前10人
-                queue_info += f"{i}. {person['user_name']}\n"
-            
-            if len(queue) > 10:
-                queue_info += f"... 还有{len(queue) - 10}人"
-            
-            yield event.plain_result(queue_info)
+            # 准备渲染数据
+            render_data = {
+                "queue_name": self.queue_name,
+                "group_name": group_name,
+                "current_size": len(queue),
+                "max_size": self.max_queue_size,
+                "queue_items": queue[:10],  # 只显示前10人
+                "has_more": len(queue) > 10,
+                "more_count": len(queue) - 10 if len(queue) > 10 else 0,
+                "completed_users": self.completed_users.get(group_id, [])
+            }
+            # 使用自定义暖色调模板
+            try:
+                image_url = await self.html_render(BEAUTIFUL_QUEUE_TEMPLATE, render_data)
+                yield event.image_result(image_url)
+            except Exception as e:
+                logger.error(f"发送队列状态图片失败：{e}")
+                # 回退到文字版本
+                queue_info = f"📋 {group_name}{self.queue_name}状态\n" + f"👥 队列人数：{len(queue)}/{self.max_queue_size}\n\n"
+                for i, person in enumerate(queue[:10], 1):
+                    queue_info += f"{i}. {person['user_name']}\n"
+                if len(queue) > 10:
+                    queue_info += f"... 还有{len(queue) - 10}人"
+                yield event.plain_result(queue_info)
 
     @filter.command("退出排队")
     async def leave_queue(self, event: AstrMessageEvent):
@@ -280,16 +581,32 @@ class QueuePlugin(Star):
             yield event.plain_result(f"📋 {group_name}队列为空，暂无排队人员")
             return
         
-        queue_info = f"📋 {group_name}{self.queue_name}状态\n"
-        queue_info += f"👥 队列人数：{len(queue)}/{self.max_queue_size}\n\n"
+        # 准备渲染数据
+        render_data = {
+            "queue_name": self.queue_name,
+            "group_name": group_name,
+            "current_size": len(queue),
+            "max_size": self.max_queue_size,
+            "queue_items": queue[:10],  # 只显示前10人
+            "has_more": len(queue) > 10,
+            "more_count": len(queue) - 10 if len(queue) > 10 else 0,
+            "completed_users": self.completed_users.get(group_id, [])
+        }
         
-        for i, person in enumerate(queue[:10], 1):  # 只显示前10人
-            queue_info += f"{i}. {person['user_name']}\n"
-        
-        if len(queue) > 10:
-            queue_info += f"... 还有{len(queue) - 10}人"
-        
-        yield event.plain_result(queue_info)
+        # 使用自定义暖色调模板
+        try:
+            image_url = await self.html_render(BEAUTIFUL_QUEUE_TEMPLATE, render_data)
+            yield event.image_result(image_url)
+        except Exception as e:
+            logger.error(f"发送队列状态图片失败：{e}")
+            # 回退到文字版本
+            queue_info = f"📋 {group_name}{self.queue_name}状态\n"
+            queue_info += f"👥 队列人数：{len(queue)}/{self.max_queue_size}\n\n"
+            for i, person in enumerate(queue[:10], 1):
+                queue_info += f"{i}. {person['user_name']}\n"
+            if len(queue) > 10:
+                queue_info += f"... 还有{len(queue) - 10}人"
+            yield event.plain_result(queue_info)
 
     @filter.command("我的位置")
     async def my_position(self, event: AstrMessageEvent):
@@ -394,24 +711,36 @@ class QueuePlugin(Star):
             yield event.plain_result(call_message)
         
         # 显示完整队列状态
-        queue_info = f"\n📋 {self.queue_status_title}：\n\n"
+        render_data = {
+            "queue_name": self.queue_name,
+            "group_name": group_name,
+            "current_size": len(queue),
+            "max_size": self.max_queue_size,
+            "queue_items": queue[:10],
+            "has_more": len(queue) > 10,
+            "more_count": len(queue) - 10 if len(queue) > 10 else 0,
+            "completed_users": self.completed_users.get(group_id, [])
+        }
         
-        # 显示已完成的用户
-        if self.completed_users[group_id]:
-            queue_info += f"✅ {self.completed_label}：\n"
-            for completed_user in self.completed_users[group_id]:
-                queue_info += f"• {completed_user} ({self.completed_label})\n"
-            queue_info += "\n"
-        
-        # 显示等待中的用户
-        if queue:
-            queue_info += f"⏳ {self.waiting_label}：\n"
-            for i, person in enumerate(queue, 1):
-                queue_info += f"{i}. {person['user_name']}\n"
-        else:
-            queue_info += f"⏳ {self.waiting_label}：\n暂无排队人员"
-        
-        yield event.plain_result(queue_info)
+        try:
+            image_url = await self.html_render(BEAUTIFUL_QUEUE_TEMPLATE, render_data)
+            yield event.image_result(image_url)
+        except Exception as e:
+            logger.error(f"发送叫号状态图片失败：{e}")
+            # 回退到文字版本
+            queue_info = f"\n📋 {self.queue_status_title}：\n\n"
+            if self.completed_users[group_id]:
+                queue_info += f"✅ {self.completed_label}：\n"
+                for completed_user in self.completed_users[group_id]:
+                    queue_info += f"• {completed_user} ({self.completed_label})\n"
+                queue_info += "\n"
+            if queue:
+                queue_info += f"⏳ {self.waiting_label}：\n"
+                for i, person in enumerate(queue, 1):
+                    queue_info += f"{i}. {person['user_name']}\n"
+            else:
+                queue_info += f"⏳ {self.waiting_label}：\n暂无排队人员"
+            yield event.plain_result(queue_info)
 
     @filter.command("当前叫号")
     async def current_calling(self, event: AstrMessageEvent):
@@ -423,22 +752,35 @@ class QueuePlugin(Star):
             yield event.plain_result(f"📋 {group_name}队列为空，暂无排队人员")
             return
         
-        # 显示即将被叫的几位
-        next_count = min(3, len(queue))
-        preview_message = f"📋 {group_name}即将叫号\n\n"
+        # 准备渲染数据
+        render_data = {
+            "queue_name": "即将叫号",
+            "group_name": group_name,
+            "current_size": len(queue),
+            "max_size": self.max_queue_size,
+            "queue_items": queue[:3],  # 显示即将叫的3人
+            "has_more": len(queue) > 3,
+            "more_count": len(queue) - 3 if len(queue) > 3 else 0,
+            "completed_users": self.completed_users.get(group_id, [])
+        }
         
-        for i in range(next_count):
-            person = queue[i]
-            
-            if i == 0:
-                preview_message += f"🔔 下一位：{person['user_name']}\n"
-            else:
-                preview_message += f"{i+1}. {person['user_name']}\n"
-        
-        if len(queue) > 3:
-            preview_message += f"... 还有{len(queue) - 3}人等待"
-        
-        yield event.plain_result(preview_message)
+        try:
+            image_url = await self.html_render(BEAUTIFUL_QUEUE_TEMPLATE, render_data)
+            yield event.image_result(image_url)
+        except Exception as e:
+            logger.error(f"发送当前叫号图片失败：{e}")
+            # 回退到文字版本
+            preview_message = f"📋 {group_name}即将叫号\n\n"
+            next_count = min(3, len(queue))
+            for i in range(next_count):
+                person = queue[i]
+                if i == 0:
+                    preview_message += f"🔔 下一位：{person['user_name']}\n"
+                else:
+                    preview_message += f"{i+1}. {person['user_name']}\n"
+            if len(queue) > 3:
+                preview_message += f"... 还有{len(queue) - 3}人等待"
+            yield event.plain_result(preview_message)
 
     @filter.command("跳过")
     async def skip_current(self, event: AstrMessageEvent):
@@ -472,48 +814,69 @@ class QueuePlugin(Star):
     @filter.command("排队帮助", alias={'help', '帮助'})
     async def queue_help(self, event: AstrMessageEvent):
         """显示排队系统帮助信息"""
-        help_text = f"📋 {self.queue_name}系统使用帮助\n\n"
-        help_text += "👤 用户指令：\n"
-        help_text += "• /排队 - 加入排队队列\n"
-        help_text += "• /退出排队 - 退出当前排队\n"
-        help_text += "• /查看队列 - 查看当前队列状态\n"
-        help_text += "• /我的位置 - 查看自己在队列中的位置\n"
-        help_text += "• /当前叫号 - 查看即将被叫的用户\n"
-        help_text += "• /排队帮助 - 显示此帮助信息\n\n"
-        help_text += "🔧 管理员指令：\n"
-        help_text += "• /下一位 - 呼叫队列中的下一位用户"
-        if self.enable_call_permission:
-            help_text += " (需要权限)"
-        help_text += "\n"
-        help_text += "• /跳过 - 跳过队列中的第一位用户"
-        if self.enable_call_permission:
-            help_text += " (需要权限)"
-        help_text += "\n"
-        help_text += "• /清空队列 - 清空当前群聊的队列和已完成记录"
-        if self.enable_call_permission:
-            help_text += " (需要权限)"
-        help_text += "\n"
-        help_text += "• /清空所有队列 - 清空所有群聊的队列和已完成记录 (需要高级管理员权限)\n\n"
-        help_text += f"⚙️ 当前配置：\n"
-        help_text += f"• 队列名称：{self.queue_name}\n"
-        help_text += f"• 最大队列人数：{self.max_queue_size}\n"
-        help_text += f"• 重复排队：{'允许' if self.allow_requeue else '不允许'}\n"
-        help_text += f"• 自动清空：{'启用' if self.enable_auto_clear else '未启用'}"
-        if self.enable_auto_clear:
-            help_text += f" (每天 {self.clear_time})"
-        help_text += "\n"
-        if self.enable_call_permission:
-            help_text += f"• 叫号权限：已启用\n"
-        if self.admin_users:
-            help_text += f"• 高级管理员：{len(self.admin_users)}名\n"
-        help_text += f"\n💡 提示：\n"
-        help_text += "• 每人每天只能排队一次（除非配置允许重复排队）\n"
-        help_text += "• 被叫号后会自动加入已完成列表\n"
-        help_text += "• 每天定时清空队列和已完成记录\n"
-        help_text += "• 退出排队后可以重新排队"
+        permission_text = " (需要权限)" if self.enable_call_permission else ""
         
-        yield event.plain_result(help_text)
+        # 准备配置数据
+        config_items = [
+            {"key": "队列名称", "value": self.queue_name},
+            {"key": "最大队列人数", "value": self.max_queue_size},
+            {"key": "重复排队", "value": "允许" if self.allow_requeue else "不允许"},
+            {"key": "自动清空", "value": "启用" if self.enable_auto_clear else "未启用"}
+        ]
+        if self.enable_auto_clear:
+            config_items.append({"key": "清空时间", "value": self.clear_time})
+        if self.enable_call_permission:
+            config_items.append({"key": "叫号权限", "value": "已启用"})
+        if self.admin_users:
+            config_items.append({"key": "高级管理员", "value": f"{len(self.admin_users)}名"})
+        
+        # 准备渲染数据
+        help_data = {
+            "queue_name": self.queue_name,
+            "permission_text": permission_text,
+            "config_items": config_items
+        }
+        
+        try:
+            # 使用自定义暖色调帮助模板
+            image_url = await self.html_render(HELP_TEMPLATE, help_data)
+            yield event.image_result(image_url)
+        except Exception as e:
+            logger.error(f"发送帮助信息图片失败：{e}")
+            # 回退到文字版本
+            help_text = f"📋 {self.queue_name}系统使用帮助\n\n"
+            help_text += "👤 用户指令：\n"
+            help_text += "• /排队 - 加入排队队列\n"
+            help_text += "• /退出排队 - 退出当前排队\n"
+            help_text += "• /查看队列 - 查看当前队列状态\n"
+            help_text += "• /我的位置 - 查看自己在队列中的位置\n"
+            help_text += "• /当前叫号 - 查看即将被叫的用户\n"
+            help_text += "• /排队帮助 - 显示此帮助信息\n\n"
+            help_text += "🔧 管理员指令：\n"
+            help_text += f"• /下一位 - 呼叫队列中的下一位用户{permission_text}\n"
+            help_text += f"• /跳过 - 跳过队列中的第一位用户{permission_text}\n"
+            help_text += f"• /清空队列 - 清空当前群聊的队列和已完成记录{permission_text}\n"
+            help_text += "• /清空所有队列 - 清空所有群聊的队列和已完成记录 (需要高级管理员权限)\n\n"
+            help_text += f"⚙️ 当前配置：\n"
+            help_text += f"• 队列名称：{self.queue_name}\n"
+            help_text += f"• 最大队列人数：{self.max_queue_size}\n"
+            help_text += f"• 重复排队：{'允许' if self.allow_requeue else '不允许'}\n"
+            help_text += f"• 自动清空：{'启用' if self.enable_auto_clear else '未启用'}"
+            if self.enable_auto_clear:
+                help_text += f" (每天 {self.clear_time})"
+            help_text += "\n"
+            if self.enable_call_permission:
+                help_text += "• 叫号权限：已启用\n"
+            if self.admin_users:
+                help_text += f"• 高级管理员：{len(self.admin_users)}名\n"
+            help_text += "\n💡 提示：\n"
+            help_text += "• 每人每天只能排队一次（除非配置允许重复排队）\n"
+            help_text += "• 被叫号后会自动加入已完成列表\n"
+            help_text += "• 每天定时清空队列和已完成记录\n"
+            help_text += "• 退出排队后可以重新排队"
+            yield event.plain_result(help_text)
 
     async def terminate(self):
         """插件销毁方法"""
         logger.info("排队系统插件已停止")
+
