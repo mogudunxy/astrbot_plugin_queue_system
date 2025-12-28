@@ -5,7 +5,7 @@
     "default": false
   },
   "call_permission_users": {
-    "description": "有叫号权限的用户ID列表",
+    "description": "有叫号权限和清除单独群聊队列的用户ID列表",
     "type": "list",
     "default": []
   },
@@ -53,5 +53,10 @@
     "description": "是否允许已完成排队的用户再次排队",
     "type": "bool",
     "default": false
+  },
+  "admin_users": {
+    "description": "高级管理员用户ID列表，可以执行清空所有队列等敏感操作",
+    "type": "list",
+    "default": []
   }
 }

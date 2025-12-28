@@ -18,6 +18,7 @@ class QueuePlugin(Star):
         # 从配置中获取设置，如果没有配置则使用默认值
         self.enable_call_permission = self.config.get("enable_call_permission", False)
         self.call_permission_users = self.config.get("call_permission_users", [])
+        self.admin_users = self.config.get("admin_users", [])
         self.max_queue_size = self.config.get("max_queue_size", 50)
         self.queue_name = self.config.get("queue_name", "排队")
         
@@ -33,6 +34,9 @@ class QueuePlugin(Star):
         
         # 重复排队配置
         self.allow_requeue = self.config.get("allow_requeue", False)
+        
+        # 高级管理员配置
+        self.admin_users = self.config.get("admin_users", [])
         
         # 启动定时清除任务
         self.clear_task = None
@@ -324,13 +328,13 @@ class QueuePlugin(Star):
 
     @filter.command("清空所有队列")
     async def clear_all_queues(self, event: AstrMessageEvent):
-        """清空所有群聊队列（管理员功能）"""
-        # 权限检查
-        if self.enable_call_permission:
-            user_id = event.get_sender_id()
-            if str(user_id) not in self.call_permission_users:
-                yield event.plain_result("❌ 你没有使用'清空所有队列'指令的权限")
-                return
+        """清空所有群聊队列（高级管理员功能）"""
+        user_id = event.get_sender_id()
+        
+        # 高级管理员权限检查（更严格的权限）
+        if str(user_id) not in self.admin_users:
+            yield event.plain_result("❌ 你没有使用'清空所有队列'指令的权限，需要高级管理员权限")
+            return
         
         total_cleared = len(self.queues)
         self.queues.clear()
@@ -489,10 +493,7 @@ class QueuePlugin(Star):
         if self.enable_call_permission:
             help_text += " (需要权限)"
         help_text += "\n"
-        help_text += "• /清空所有队列 - 清空所有群聊的队列和已完成记录"
-        if self.enable_call_permission:
-            help_text += " (需要权限)"
-        help_text += "\n\n"
+        help_text += "• /清空所有队列 - 清空所有群聊的队列和已完成记录 (需要高级管理员权限)\n\n"
         help_text += f"⚙️ 当前配置：\n"
         help_text += f"• 队列名称：{self.queue_name}\n"
         help_text += f"• 最大队列人数：{self.max_queue_size}\n"
@@ -503,6 +504,8 @@ class QueuePlugin(Star):
         help_text += "\n"
         if self.enable_call_permission:
             help_text += f"• 叫号权限：已启用\n"
+        if self.admin_users:
+            help_text += f"• 高级管理员：{len(self.admin_users)}名\n"
         help_text += f"\n💡 提示：\n"
         help_text += "• 每人每天只能排队一次（除非配置允许重复排队）\n"
         help_text += "• 被叫号后会自动加入已完成列表\n"
