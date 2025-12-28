@@ -292,7 +292,7 @@ HELP_TEMPLATE = '''
 </html>
 '''
 
-@register("queue_system", "YourName", "排队系统插件", "1.1.0")
+@register("queue_system", "mogudunxy", "排队系统插件", "1.2.0")
 class QueuePlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig = None):
         super().__init__(context)
